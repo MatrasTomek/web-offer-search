@@ -161,3 +161,56 @@ Jednorazowo, przed pierwszym pełnym użyciem:
 - Automatyczna rejestracja/logowanie na serwisach trzecich.
 - Źródła wymagające logowania bez wyjątku Useme (np. LinkedIn, Facebook groups) —
   odrzucone ze względu na ToS.
+
+## Addendum: weryfikacja techniczna przed planem implementacji (2026-10-04)
+
+Przed napisaniem planu implementacji sprawdzono bezpośrednio (realne zapytania/live
+browser) każde źródło, żeby plan zawierał działający kod, nie zgadywane
+endpointy/selektory. Wyniki zmieniają zakres v1 z sekcji "Research źródeł" powyżej:
+
+**Potwierdzone i gotowe do implementacji:**
+- **e-Zamówienia** — `GET https://ezamowienia.gov.pl/mo-board/api/v1/notice`, bez
+  autoryzacji. Pola: `orderObject` (tytuł/opis), `cpvCode`, `publicationDate`,
+  `tenderId`. Parametr `CpvCode` w query **nie filtruje** po stronie serwera
+  (zweryfikowano empirycznie) — filtrowanie po CPV musi być po stronie klienta.
+  Brak pola budżetu w odpowiedzi.
+- **TED** — `POST https://api.ted.europa.eu/v3/notices/search`, bez autoryzacji.
+  Pola: `TI` (tytuł, słownik per-język), `ND`, `CY`, `classification-cpv`,
+  `links.htmlDirect`. Brak pełnego opisu i budżetu w odpowiedzi search API.
+- **Oferia.com.pl** — zwykły HTML, bez JS. Listing:
+  `https://oferia.com.pl/pl/zlecenia/programowanie-it`. Selektory:
+  `div.listing-card`, `h3.listing-title > a`, `p.listing-excerpt`,
+  `div.listing-budget span`, `div.listing-date` (format `DD.MM.YYYY`).
+- **Freelancer.com** — zwykły HTML (server-rendered), bez JS. Listing:
+  `https://www.freelancer.com/jobs/website-design`. Selektory:
+  `a.JobSearchCard-primary-heading-link`, `p.JobSearchCard-primary-description`,
+  `div.JobSearchCard-primary-price`, `span.JobSearchCard-primary-heading-days`
+  (data względna, np. "6 days left" — nie absolutna).
+
+**Zmiana zakresu — PeoplePerHour wymaga Playwright:**
+`/projects_rss` zwraca 404 (feed nie istnieje), a strona z listingiem jest
+renderowana przez JS (surowy HTML nie zawiera danych o zleceniach). Potwierdzono
+żywą przeglądarką (Playwright + Chromium), że dane faktycznie się renderują
+(300+ wyników). Strona używa CSS-modules z haszowanymi nazwami klas
+(`item__title⤍ListItem⤚2FRMT`) — hash po `⤚` zmienia się między wdrożeniami, ale
+prefiks przed `⤍` (np. `item__title`, `item__desc`, `card__price`,
+`card__footer-left`) jest stabilny, więc selektory muszą używać dopasowania
+podciągu (`[class*="item__title"]`), nie pełnej klasy. **Decyzja: dodajemy
+Playwright jako zależność projektu** (świadomy odstąpienie od "bez ciężkich
+zależności" dla tego jednego źródła, zaakceptowane przez użytkownika).
+
+**Zmiana zakresu — Useme wykluczone ze scrapingu, nawet z Playwright:**
+Cała domena stoi za Cloudflare i zwraca HTTP 403 "Just a moment..." na każdej
+stronie — potwierdzono zarówno przez `requests`, jak i przez żywy Chromium
+odpalony przez Playwright (Cloudflare wykrywa automatyzację nawet z prawdziwym
+silnikiem przeglądarki). To unieważnia też fallback z cookie sesji z checklisty
+startowej (cookie `cf_clearance` jest krótkotrwałe i związane z IP/User-Agent —
+nie przetrwa do kolejnego odpalenia skryptu). **Decyzja: Useme wypada z v1
+całkowicie.** Jedyna realna ścieżka to oficjalne API po mailowej akceptacji —
+zostaje w checkliście startowej jako krok do wysłania, a fetcher Useme dopiszemy
+jako fast-follow, gdy dostęp zostanie przyznany (nie teraz, bo nie ma jeszcze
+żadnego endpointu/tokena, na którym dałoby się napisać działający kod).
+
+**v1 obejmuje więc 5 fetcherów:** e-Zamówienia, TED, Oferia.com.pl,
+Freelancer.com, PeoplePerHour (przez Playwright). Useme — fast-follow po
+otrzymaniu dostępu do API.
