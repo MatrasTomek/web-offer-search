@@ -2,3 +2,5 @@ data/
 *.pyc
 __pycache__/
 .venv/
+.superpowers/
+.playwright-mcp/
