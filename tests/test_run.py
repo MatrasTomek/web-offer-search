@@ -92,3 +92,19 @@ def test_run_marks_repeat_run_leads_as_not_new(tmp_path):
 
     assert first["leads"][0]["is_new"] is True
     assert second["leads"][0]["is_new"] is False
+
+
+def test_run_reports_failure_reason_on_console(tmp_path, capsys):
+    def broken_source():
+        raise RuntimeError("HTTP 403 from listing")
+
+    run.run(
+        sources=[("Broken", broken_source)],
+        now="2026-10-04T12:00:00Z",
+        seen_path=tmp_path / "seen.json",
+        report_path=tmp_path / "report.html",
+    )
+
+    err = capsys.readouterr().err
+    assert "Broken" in err
+    assert "HTTP 403 from listing" in err

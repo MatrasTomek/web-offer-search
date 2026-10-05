@@ -1,30 +1,33 @@
-from urllib.robotparser import RobotFileParser
 from unittest.mock import Mock, patch
 import scrape_utils
 
 
-def test_robots_allows_true_when_path_not_disallowed(monkeypatch):
-    def fake_read(self):
-        self.parse(["User-agent: *", "Disallow: /private/"])
-
-    monkeypatch.setattr(RobotFileParser, "read", fake_read)
-    assert scrape_utils.robots_allows("https://example.com", "/public/page") is True
+ROBOTS_TXT = "User-agent: *\nDisallow: /private/\n"
 
 
-def test_robots_allows_false_when_path_disallowed(monkeypatch):
-    def fake_read(self):
-        self.parse(["User-agent: *", "Disallow: /private/"])
-
-    monkeypatch.setattr(RobotFileParser, "read", fake_read)
-    assert scrape_utils.robots_allows("https://example.com", "/private/page") is False
+def _robots_response(status=200, text=ROBOTS_TXT):
+    response = Mock(status_code=status, text=text)
+    return response
 
 
-def test_robots_allows_fails_open_when_robots_txt_unreachable(monkeypatch):
-    def fake_read(self):
-        raise OSError("connection refused")
+def test_robots_allows_true_when_path_not_disallowed():
+    with patch.object(scrape_utils.requests, "get", return_value=_robots_response()):
+        assert scrape_utils.robots_allows("https://example.com", "/public/page") is True
 
-    monkeypatch.setattr(RobotFileParser, "read", fake_read)
-    assert scrape_utils.robots_allows("https://example.com", "/anything") is True
+
+def test_robots_allows_false_when_path_disallowed():
+    with patch.object(scrape_utils.requests, "get", return_value=_robots_response()):
+        assert scrape_utils.robots_allows("https://example.com", "/private/page") is False
+
+
+def test_robots_allows_fails_open_when_robots_txt_unreachable():
+    with patch.object(scrape_utils.requests, "get", side_effect=scrape_utils.requests.Timeout("slow")):
+        assert scrape_utils.robots_allows("https://example.com", "/anything") is True
+
+
+def test_robots_allows_fails_open_on_server_error():
+    with patch.object(scrape_utils.requests, "get", return_value=_robots_response(status=503, text="")):
+        assert scrape_utils.robots_allows("https://example.com", "/private/page") is True
 
 
 def test_rate_limited_get_sleeps_remaining_delay_for_same_domain(monkeypatch):

@@ -13,7 +13,11 @@ def fetch() -> list[dict]:
         raise RuntimeError(f"robots.txt disallows {LISTING_PATH} on {BASE_URL}")
     response = rate_limited_get(LISTING_URL)
     soup = BeautifulSoup(response.text, "html.parser")
-    raw_items = [_parse_card(card) for card in soup.select("div.JobSearchCard-item-inner")]
+    raw_items = [
+        _parse_card(card)
+        for card in soup.select("div.JobSearchCard-item-inner")
+        if card.select_one("a.JobSearchCard-primary-heading-link")
+    ]
     return [normalize_freelancer(item) for item in raw_items]
 
 

@@ -44,3 +44,13 @@ def test_fetch_raises_when_robots_disallows():
             assert False, "expected RuntimeError"
         except RuntimeError:
             pass
+
+
+def test_fetch_skips_card_without_title_link_and_keeps_others():
+    broken = '<div class="JobSearchCard-item-inner"><p>no link</p></div>'
+    fake_response = Mock(text=broken + _SAMPLE_HTML)
+    with patch.object(freelancer, "robots_allows", return_value=True), patch.object(
+        freelancer, "rate_limited_get", return_value=fake_response
+    ):
+        leads = freelancer.fetch()
+    assert len(leads) == 1

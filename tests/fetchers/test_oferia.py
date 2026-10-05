@@ -44,3 +44,13 @@ def test_fetch_raises_when_robots_disallows():
             assert False, "expected RuntimeError"
         except RuntimeError:
             pass
+
+
+def test_fetch_skips_card_without_title_link_and_keeps_others():
+    broken = '<div class="listing-card"><h3 class="listing-title">no link</h3></div>'
+    fake_response = Mock(text=broken + _SAMPLE_HTML)
+    with patch.object(oferia, "robots_allows", return_value=True), patch.object(
+        oferia, "rate_limited_get", return_value=fake_response
+    ):
+        leads = oferia.fetch()
+    assert [lead["link"] for lead in leads] == ["https://oferia.com.pl/pl/zlecenie/1024"]

@@ -8,12 +8,14 @@ _last_request_at: dict[str, float] = {}
 
 
 def robots_allows(base_url: str, path: str, user_agent: str = "*") -> bool:
-    parser = RobotFileParser()
-    parser.set_url(base_url.rstrip("/") + "/robots.txt")
     try:
-        parser.read()
-    except OSError:
+        response = requests.get(base_url.rstrip("/") + "/robots.txt", timeout=10)
+    except requests.RequestException:
         return True
+    if response.status_code != 200:
+        return True
+    parser = RobotFileParser()
+    parser.parse(response.text.splitlines())
     return parser.can_fetch(user_agent, path)
 
 

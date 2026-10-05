@@ -1,3 +1,4 @@
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -18,7 +19,8 @@ def run(
     for name, fetch in sources:
         try:
             all_leads.extend(fetch())
-        except Exception:
+        except Exception as exc:
+            print(f"[{name}] nie odpowiedział: {exc}", file=sys.stderr)
             failed_sources.append(name)
 
     relevant = [lead for lead in all_leads if is_relevant(lead)]

@@ -13,7 +13,7 @@ def fetch() -> list[dict]:
         raise RuntimeError(f"robots.txt disallows {LISTING_PATH} on {BASE_URL}")
     response = rate_limited_get(LISTING_URL)
     soup = BeautifulSoup(response.text, "html.parser")
-    raw_items = [_parse_card(card) for card in soup.select("div.listing-card")]
+    raw_items = [_parse_card(card) for card in soup.select("div.listing-card") if card.select_one("h3.listing-title a")]
     return [normalize_oferia(item) for item in raw_items]
 
 
